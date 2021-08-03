@@ -51,7 +51,7 @@ ohos_shared_library("libdrm") {
   public_deps = [
   ]
   module_install_dir = "lib"
-  install_images = [ "updater" ]
+  install_images = [ "system", "updater" ]
   part_name = "graphic_standard"
   subsystem_name = "graphic"
 }
