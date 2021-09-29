@@ -71,6 +71,8 @@ Note:If the text contains special characters, please escape them according to th
                 <filteritem type="filename" name="CONTRIBUTING.rst" desc="not used in ohos"/>
                 <filteritem type="filename" name="libdrm_lists.h" desc="not used in ohos"/>
                 <filteritem type="filename" name="util_double_list.h" desc="not used in ohos"/>
+                <filteritem type="filepath" name="intel/.*" desc="not used in ohos"/>
+                <filteritem type="filepath" name="tests/.*" desc="not used in ohos"/>
             </filefilter>
         </filefilterlist>
     </oatconfig>
