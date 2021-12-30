@@ -63,10 +63,14 @@ Note:If the text contains special characters, please escape them according to th
             </policy>
         </policylist>
         <filefilterlist>
+            <filefilter name="defaultFilter" desc="Files not to check">
+	            <filteritem type="filepath" name=".*" desc="third party"/>
+            </filefilter>
             <filefilter name="defaultPolicyFilter" desc="Filters for compatibility，license header policies">
                 <filteritem type="filename" name="README.OpenSource"/>
                 <filteritem type="filename" name="README"/>
                 <filteritem type="filepath" name="radeon/.*" desc="not used in ohos"/>
+                <filteritem type="filepath" name="intel/.*" desc="not used in ohos"/>
                 <filteritem type="filename" name="ttmtest.c" desc="not used in ohos"/>
                 <filteritem type="filename" name="CONTRIBUTING.rst" desc="not used in ohos"/>
                 <filteritem type="filename" name="libdrm_lists.h" desc="not used in ohos"/>
