@@ -46,7 +46,7 @@ ohos_shared_library("libdrm") {
     "system",
     "updater",
   ]
-  part_name = "graphic_standard"
-  subsystem_name = "graphic"
+  part_name = "drivers_peripheral_display"
+  subsystem_name = "hdf"
 }
 ## Build libdrm.so }}}
