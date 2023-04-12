@@ -37,6 +37,18 @@
 #include <sys/time.h>
 #include <stdarg.h>
 #include <stdint.h>
+#ifdef __linux__
+#include <linux/limits.h>
+#elif __FreeBSD__
+/* SPECNAMELEN in FreeBSD is defined here: */
+#include <sys/param.h>
+#endif
+#ifdef MAJOR_IN_MKDEV
+#include <sys/mkdev.h>
+#endif
+#ifdef MAJOR_IN_SYSMACROS
+#include <sys/sysmacros.h>
+#endif
 
 #include "drm.h"
 #include "xf86drmMode.h"
@@ -53,11 +65,15 @@
 #define CS_TESTS_STR "CS Tests"
 #define VCE_TESTS_STR "VCE Tests"
 #define VCN_TESTS_STR "VCN Tests"
+#define JPEG_TESTS_STR "JPEG Tests"
 #define UVD_ENC_TESTS_STR "UVD ENC Tests"
 #define DEADLOCK_TESTS_STR "Deadlock Tests"
 #define VM_TESTS_STR "VM Tests"
 #define RAS_TESTS_STR "RAS Tests"
 #define SYNCOBJ_TIMELINE_TESTS_STR "SYNCOBJ TIMELINE Tests"
+#define SECURITY_TESTS_STR "Security Tests"
+#define HOTUNPLUG_TESTS_STR "Hotunplug Tests"
+#define CP_DMA_TESTS_STR "CP DMA Tests"
 
 /**
  *  Open handles for amdgpu devices
@@ -101,6 +117,12 @@ static CU_SuiteInfo suites[] = {
 		.pTests = vcn_tests,
 	},
 	{
+		.pName = JPEG_TESTS_STR,
+		.pInitFunc = suite_jpeg_tests_init,
+		.pCleanupFunc = suite_jpeg_tests_clean,
+		.pTests = jpeg_tests,
+	},
+	{
 		.pName = UVD_ENC_TESTS_STR,
 		.pInitFunc = suite_uvd_enc_tests_init,
 		.pCleanupFunc = suite_uvd_enc_tests_clean,
@@ -130,6 +152,24 @@ static CU_SuiteInfo suites[] = {
 		.pCleanupFunc = suite_syncobj_timeline_tests_clean,
 		.pTests = syncobj_timeline_tests,
 	},
+	{
+		.pName = SECURITY_TESTS_STR,
+		.pInitFunc = suite_security_tests_init,
+		.pCleanupFunc = suite_security_tests_clean,
+		.pTests = security_tests,
+	},
+	{
+		.pName = HOTUNPLUG_TESTS_STR,
+		.pInitFunc = suite_hotunplug_tests_init,
+		.pCleanupFunc = suite_hotunplug_tests_clean,
+		.pTests = hotunplug_tests,
+	},
+	{
+		.pName = CP_DMA_TESTS_STR,
+		.pInitFunc = suite_cp_dma_tests_init,
+		.pCleanupFunc = suite_cp_dma_tests_clean,
+		.pTests = cp_dma_tests,
+	},
 
 	CU_SUITE_INFO_NULL,
 };
@@ -149,7 +189,7 @@ static CU_BOOL always_active()
 static Suites_Active_Status suites_active_stat[] = {
 		{
 			.pName = BASIC_TESTS_STR,
-			.pActive = always_active,
+			.pActive = suite_basic_tests_enable,
 		},
 		{
 			.pName = BO_TESTS_STR,
@@ -166,6 +206,10 @@ static Suites_Active_Status suites_active_stat[] = {
 		{
 			.pName = VCN_TESTS_STR,
 			.pActive = suite_vcn_tests_enable,
+		},
+		{
+			.pName = JPEG_TESTS_STR,
+			.pActive = suite_jpeg_tests_enable,
 		},
 		{
 			.pName = UVD_ENC_TESTS_STR,
@@ -186,6 +230,18 @@ static Suites_Active_Status suites_active_stat[] = {
 		{
 			.pName = SYNCOBJ_TIMELINE_TESTS_STR,
 			.pActive = suite_syncobj_timeline_tests_enable,
+		},
+		{
+			.pName = SECURITY_TESTS_STR,
+			.pActive = suite_security_tests_enable,
+		},
+		{
+			.pName = HOTUNPLUG_TESTS_STR,
+			.pActive = suite_hotunplug_tests_enable,
+		},
+		{
+			.pName = CP_DMA_TESTS_STR,
+			.pActive = suite_cp_dma_tests_enable,
 		},
 };
 
@@ -266,6 +322,10 @@ static int amdgpu_open_devices(int open_render_node)
 	int fd;
 	drmVersionPtr version;
 
+	for (i = 0; i < MAX_CARDS_SUPPORTED; i++) {
+		drm_amdgpu[i] = -1;
+	}
+
 	drm_count = drmGetDevices2(0, devices, MAX_CARDS_SUPPORTED);
 
 	if (drm_count < 0) {
@@ -328,12 +388,13 @@ static int amdgpu_open_devices(int open_render_node)
 
 /* Close AMD devices.
  */
-static void amdgpu_close_devices()
+void amdgpu_close_devices()
 {
 	int i;
 	for (i = 0; i < MAX_CARDS_SUPPORTED; i++)
-		if (drm_amdgpu[i] >=0)
+		if (drm_amdgpu[i] >=0) {
 			close(drm_amdgpu[i]);
+		}
 }
 
 /* Print AMD devices information */
@@ -419,7 +480,8 @@ static void amdgpu_disable_suites()
 {
 	amdgpu_device_handle device_handle;
 	uint32_t major_version, minor_version, family_id;
-	int i;
+	drmDevicePtr devices[MAX_CARDS_SUPPORTED];
+	int i, drm_count;
 	int size = sizeof(suites_active_stat) / sizeof(suites_active_stat[0]);
 
 	if (amdgpu_device_initialize(drm_amdgpu[0], &major_version,
@@ -430,6 +492,8 @@ static void amdgpu_disable_suites()
 
 	if (amdgpu_device_deinitialize(device_handle))
 		return;
+
+	drm_count = drmGetDevices2(0, devices, MAX_CARDS_SUPPORTED);
 
 	/* Set active status for suites based on their policies */
 	for (i = 0; i < size; ++i)
@@ -485,9 +549,6 @@ static void amdgpu_disable_suites()
 				"gfx ring slow bad draw test (set amdgpu.lockup_timeout=50)", CU_FALSE))
 			fprintf(stderr, "test deactivation failed - %s\n", CU_get_error_msg());
 
-	if (amdgpu_set_test_active(BO_TESTS_STR, "Metadata", CU_FALSE))
-		fprintf(stderr, "test deactivation failed - %s\n", CU_get_error_msg());
-
 	if (amdgpu_set_test_active(BASIC_TESTS_STR, "bo eviction Test", CU_FALSE))
 		fprintf(stderr, "test deactivation failed - %s\n", CU_get_error_msg());
 
@@ -513,6 +574,84 @@ static void amdgpu_disable_suites()
 	//if (family_id < AMDGPU_FAMILY_AI || family_id > AMDGPU_FAMILY_RV)
 		if (amdgpu_set_test_active(BASIC_TESTS_STR, "GPU reset Test", CU_FALSE))
 			fprintf(stderr, "test deactivation failed - %s\n", CU_get_error_msg());
+
+	/* You need at least 2 devices for this	*/
+	if (drm_count < 2)
+		if (amdgpu_set_test_active(HOTUNPLUG_TESTS_STR, "Unplug with exported fence", CU_FALSE))
+			fprintf(stderr, "test deactivation failed - %s\n", CU_get_error_msg());
+}
+
+int test_device_index;
+
+int amdgpu_open_device_on_test_index(int render_node)
+{
+	int i;
+
+	if (amdgpu_open_devices(open_render_node) <= 0) {
+		perror("Cannot open AMDGPU device");
+		return -1;
+	}
+
+	if (test_device_index >= 0) {
+		/* Most tests run on device of drm_amdgpu[0].
+		 * Swap the chosen device to drm_amdgpu[0].
+		 */
+		i = drm_amdgpu[0];
+		drm_amdgpu[0] = drm_amdgpu[test_device_index];
+		drm_amdgpu[test_device_index] = i;
+	}
+
+	return 0;
+
+
+}
+
+
+static bool amdgpu_node_is_drm(int maj, int min)
+{
+#ifdef __linux__
+    char path[64];
+    struct stat sbuf;
+
+    snprintf(path, sizeof(path), "/sys/dev/char/%d:%d/device/drm",
+             maj, min);
+    return stat(path, &sbuf) == 0;
+#elif defined(__FreeBSD__)
+    char name[SPECNAMELEN];
+
+    if (!devname_r(makedev(maj, min), S_IFCHR, name, sizeof(name)))
+      return 0;
+    /* Handle drm/ and dri/ as both are present in different FreeBSD version
+     * FreeBSD on amd64/i386/powerpc external kernel modules create node in
+     * in /dev/drm/ and links in /dev/dri while a WIP in kernel driver creates
+     * only device nodes in /dev/dri/ */
+    return (!strncmp(name, "drm/", 4) || !strncmp(name, "dri/", 4));
+#else
+    return maj == DRM_MAJOR;
+#endif
+}
+
+char *amdgpu_get_device_from_fd(int fd)
+{
+#ifdef __linux__
+    struct stat sbuf;
+    char path[PATH_MAX + 1];
+    unsigned int maj, min;
+
+    if (fstat(fd, &sbuf))
+        return NULL;
+
+    maj = major(sbuf.st_rdev);
+    min = minor(sbuf.st_rdev);
+
+    if (!amdgpu_node_is_drm(maj, min) || !S_ISCHR(sbuf.st_mode))
+        return NULL;
+
+    snprintf(path, sizeof(path), "/sys/dev/char/%d:%d/device", maj, min);
+    return strdup(path);
+#else
+    return NULL;
+#endif
 }
 
 /* The main() function for setting up and running the tests.
@@ -530,7 +669,6 @@ int main(int argc, char **argv)
 	int display_devices = 0;/* By default not to display devices' info */
 	CU_pSuite pSuite = NULL;
 	CU_pTest  pTest  = NULL;
-	int test_device_index;
 	int display_list = 0;
 	int force_run = 0;
 

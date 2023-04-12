@@ -56,7 +56,11 @@ static amdgpu_device_handle device_handle;
 static uint32_t major_version;
 static uint32_t minor_version;
 static uint32_t family_id;
+static uint32_t chip_rev;
+static uint32_t chip_id;
 static uint32_t asic_id;
+static uint32_t chip_rev;
+static uint32_t chip_id;
 
 static amdgpu_context_handle context_handle;
 static amdgpu_bo_handle ib_handle;
@@ -66,7 +70,13 @@ static uint32_t *ib_cpu;
 
 static amdgpu_bo_handle resources[MAX_RESOURCES];
 static unsigned num_resources;
-static struct amdgpu_vcn_reg reg;
+
+static uint8_t vcn_reg_index;
+static struct amdgpu_vcn_reg reg[] = {
+	{0x81c4, 0x81c5, 0x81c3, 0x81ff, 0x81c6},
+	{0x504, 0x505, 0x503, 0x53f, 0x506},
+	{0x10, 0x11, 0xf, 0x29, 0x26d},
+};
 
 static void amdgpu_cs_vcn_dec_create(void);
 static void amdgpu_cs_vcn_dec_decode(void);
@@ -90,6 +100,8 @@ CU_TestInfo vcn_tests[] = {
 
 CU_BOOL suite_vcn_tests_enable(void)
 {
+	struct drm_amdgpu_info_hw_ip info;
+	int r;
 
 	if (amdgpu_device_initialize(drm_amdgpu[0], &major_version,
 				   &minor_version, &device_handle))
@@ -97,37 +109,36 @@ CU_BOOL suite_vcn_tests_enable(void)
 
 	family_id = device_handle->info.family_id;
 	asic_id = device_handle->info.asic_id;
+	chip_rev = device_handle->info.chip_rev;
+	chip_id = device_handle->info.chip_external_rev;
+
+	r = amdgpu_query_hw_ip_info(device_handle, AMDGPU_HW_IP_VCN_DEC, 0, &info);
 
 	if (amdgpu_device_deinitialize(device_handle))
 			return CU_FALSE;
 
-
-	if (family_id < AMDGPU_FAMILY_RV) {
+	if (r != 0 || !info.available_rings ||
+	    (family_id < AMDGPU_FAMILY_RV &&
+	     (family_id == AMDGPU_FAMILY_AI &&
+	      (chip_id - chip_rev) < 0x32))) {  /* Arcturus */
 		printf("\n\nThe ASIC NOT support VCN, suite disabled\n");
 		return CU_FALSE;
 	}
 
-	if (family_id == AMDGPU_FAMILY_RV) {
-		if (asic_id == 0x1636) {
-			reg.data0 = 0x504;
-			reg.data1 = 0x505;
-			reg.cmd = 0x503;
-			reg.nop = 0x53f;
-			reg.cntl = 0x506;
-		} else {
-			reg.data0 = 0x81c4;
-			reg.data1 = 0x81c5;
-			reg.cmd = 0x81c3;
-			reg.nop = 0x81ff;
-			reg.cntl = 0x81c6;
-		}
-	} else if (family_id == AMDGPU_FAMILY_NV) {
-		reg.data0 = 0x504;
-		reg.data1 = 0x505;
-		reg.cmd = 0x503;
-		reg.nop = 0x53f;
-		reg.cntl = 0x506;
-	} else
+	if (family_id == AMDGPU_FAMILY_AI) {
+		amdgpu_set_test_active("VCN Tests", "VCN ENC create", CU_FALSE);
+		amdgpu_set_test_active("VCN Tests", "VCN ENC decode", CU_FALSE);
+		amdgpu_set_test_active("VCN Tests", "VCN ENC destroy", CU_FALSE);
+	}
+
+	if (info.hw_ip_version_major == 1)
+		vcn_reg_index = 0;
+	else if (info.hw_ip_version_major == 2)
+		vcn_reg_index = 1;
+	else if ((info.hw_ip_version_major == 2 && info.hw_ip_version_minor >= 5) ||
+		  info.hw_ip_version_major == 3)
+		vcn_reg_index = 2;
+	else
 		return CU_FALSE;
 
 	return CU_TRUE;
@@ -271,11 +282,11 @@ static void free_resource(struct amdgpu_vcn_bo *vcn_bo)
 
 static void vcn_dec_cmd(uint64_t addr, unsigned cmd, int *idx)
 {
-	ib_cpu[(*idx)++] = reg.data0;
+	ib_cpu[(*idx)++] = reg[vcn_reg_index].data0;
 	ib_cpu[(*idx)++] = addr;
-	ib_cpu[(*idx)++] = reg.data1;
+	ib_cpu[(*idx)++] = reg[vcn_reg_index].data1;
 	ib_cpu[(*idx)++] = addr >> 32;
-	ib_cpu[(*idx)++] = reg.cmd;
+	ib_cpu[(*idx)++] = reg[vcn_reg_index].cmd;
 	ib_cpu[(*idx)++] = cmd << 1;
 }
 
@@ -296,14 +307,14 @@ static void amdgpu_cs_vcn_dec_create(void)
 	memcpy(msg_buf.ptr, vcn_dec_create_msg, sizeof(vcn_dec_create_msg));
 
 	len = 0;
-	ib_cpu[len++] = reg.data0;
+	ib_cpu[len++] = reg[vcn_reg_index].data0;
 	ib_cpu[len++] = msg_buf.addr;
-	ib_cpu[len++] = reg.data1;
+	ib_cpu[len++] = reg[vcn_reg_index].data1;
 	ib_cpu[len++] = msg_buf.addr >> 32;
-	ib_cpu[len++] = reg.cmd;
+	ib_cpu[len++] = reg[vcn_reg_index].cmd;
 	ib_cpu[len++] = 0;
 	for (; len % 16; ) {
-		ib_cpu[len++] = reg.nop;
+		ib_cpu[len++] = reg[vcn_reg_index].nop;
 		ib_cpu[len++] = 0;
 	}
 
@@ -371,10 +382,10 @@ static void amdgpu_cs_vcn_dec_decode(void)
 	vcn_dec_cmd(it_addr, 0x204, &len);
 	vcn_dec_cmd(ctx_addr, 0x206, &len);
 
-	ib_cpu[len++] = reg.cntl;
+	ib_cpu[len++] = reg[vcn_reg_index].cntl;
 	ib_cpu[len++] = 0x1;
 	for (; len % 16; ) {
-		ib_cpu[len++] = reg.nop;
+		ib_cpu[len++] = reg[vcn_reg_index].nop;
 		ib_cpu[len++] = 0;
 	}
 
@@ -406,14 +417,14 @@ static void amdgpu_cs_vcn_dec_destroy(void)
 	memcpy(msg_buf.ptr, vcn_dec_destroy_msg, sizeof(vcn_dec_destroy_msg));
 
 	len = 0;
-	ib_cpu[len++] = reg.data0;
+	ib_cpu[len++] = reg[vcn_reg_index].data0;
 	ib_cpu[len++] = msg_buf.addr;
-	ib_cpu[len++] = reg.data1;
+	ib_cpu[len++] = reg[vcn_reg_index].data1;
 	ib_cpu[len++] = msg_buf.addr >> 32;
-	ib_cpu[len++] = reg.cmd;
+	ib_cpu[len++] = reg[vcn_reg_index].cmd;
 	ib_cpu[len++] = 0;
 	for (; len % 16; ) {
-		ib_cpu[len++] = reg.nop;
+		ib_cpu[len++] = reg[vcn_reg_index].nop;
 		ib_cpu[len++] = 0;
 	}
 
