@@ -56,22 +56,82 @@ Note:If the text contains special characters, please escape them according to th
 -->
 <configuration>
     <oatconfig>
-        <licensefile>meson.build</licensefile>
         <policylist>
             <policy name="projectPolicy" desc="">
-			<policyitem type="compatibility" name="SPDX:GPL-2.0 WITH Linux-syscall-note" path="etnaviv/etnaviv_drm.h" desc="not used in OHOS"/>
+                <policyitem type="license" name="Apache" path="BUILD.gn" rule="may" desc="Apache License"/>
+                <policyitem type="license" name="MIT" path=".*" rule="may" desc="MIT License"/>
+                <policyitem type="copyright" name="Advanced Micro Devices, Inc." path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="Broadcom" path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="Collabora Ltd." path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="Dave Airlie" path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="Eric Anholt" path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="Felix Kuehling" path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="Frank C. Earl" path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="Gareth Hughes" path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="Google, Inc" path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="Huawei Device Co., Ltd." path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="Intel Corporation" path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="Jakob Bornecrantz" path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="Leif Delgass" path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="NVIDIA Corporation" path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="Precision Insight, Inc." path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="Red Hat" path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="Stephane Marchesin." path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="S3 Graphics, Inc." path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="Tungsten Graphics, Inc." path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="VA Linux Systems, Inc." path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="VIA Technologies, Inc." path=".*" rule="may" desc=""/>
+                <policyitem type="copyright" name="VMware, Inc." path=".*" rule="may" desc=""/>
             </policy>
         </policylist>
         <filefilterlist>
-            <filefilter name="defaultPolicyFilter" desc="Filters for compatibility，license header policies">
-                <filteritem type="filename" name="README.OpenSource"/>
-                <filteritem type="filename" name="README"/>
+            <filefilter name="defaultFilter" desc="Files not to check">
+                <filteritem type="filepath" name="amdgpu/.*" desc="not used in ohos"/>
+                <filteritem type="filepath" name="android/.*" desc="not used in ohos"/>
+                <filteritem type="filepath" name="data/.*" desc="not used in ohos"/>
+                <filteritem type="filepath" name="etnaviv/.*" desc="not used in ohos"/>
+                <filteritem type="filepath" name="exynos/.*" desc="not used in ohos"/>
+                <filteritem type="filepath" name="freedreno/.*" desc="not used in ohos"/>
+                <filteritem type="filepath" name="intel/.*" desc="not used in ohos"/>
+                <filteritem type="filepath" name="man/.*" desc="not used in ohos"/>
+                <filteritem type="filepath" name="nouveau/.*" desc="not used in ohos"/>
+                <filteritem type="filepath" name="omap/.*" desc="not used in ohos"/>
                 <filteritem type="filepath" name="radeon/.*" desc="not used in ohos"/>
-                <filteritem type="filename" name="ttmtest.c" desc="not used in ohos"/>
+                <filteritem type="filepath" name="tegra/.*" desc="not used in ohos"/>
+                <filteritem type="filepath" name="tests/.*" desc="not used in ohos"/>
+                <filteritem type="filepath" name="vc4/.*" desc="not used in ohos"/>
+                <filteritem type="filename" name="*.build|*.in|*.mk|*.py|*.rst|*.sources|*.txt" desc="not used in ohos"/>
                 <filteritem type="filename" name="CONTRIBUTING.rst" desc="not used in ohos"/>
-                <filteritem type="filename" name="libdrm_lists.h" desc="not used in ohos"/>
-                <filteritem type="filename" name="util_double_list.h" desc="not used in ohos"/>
+                <filteritem type="filename" name="RELEASING" desc="not used in ohos"/>
+                <filteritem type="filename" name="generated_static_table_fourcc.h" desc="generated by meson, no license"/>
+            </filefilter>
+            <filefilter name="defaultPolicyFilter" desc="Filters for compatibility, license header policies">
+                <filteritem type="filename" name="README.*"/>
             </filefilter>
         </filefilterlist>
+        <licensematcherlist>
+            <licensematcher name="MIT" desc="Filters for MIT License" >
+                <licensetext name="
+                    * Permission is hereby granted, free of charge, to any person obtaining a
+                    * copy of this software and associated documentation files (the
+                    * &gt;Software&gt;), to deal in the Software without restriction, including
+                    * without limitation the rights to use, copy, modify, merge, publish,
+                    * distribute, sub license, and/or sell copies of the Software, and to
+                    * permit persons to whom the Software is furnished to do so, subject to
+                    * the following conditions:
+                    *
+                    * THE SOFTWARE IS PROVIDED &gt;AS IS&gt;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+                    * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+                    * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+                    * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
+                    * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+                    * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+                    * USE OR OTHER DEALINGS IN THE SOFTWARE.
+                    *
+                    * The above copyright notice and this permission notice (including the
+                    * next paragraph) shall be included in all copies or substantial portions
+                    * of the Software."/>
+            </licensematcher>
+        </licensematcherlist>
     </oatconfig>
 </configuration>
