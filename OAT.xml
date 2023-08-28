@@ -56,6 +56,7 @@ Note:If the text contains special characters, please escape them according to th
 -->
 <configuration>
     <oatconfig>
+        <licensefile>meson.build</licensefile>
         <policylist>
             <policy name="projectPolicy" desc="">
                 <policyitem type="license" name="Apache" path="BUILD.gn" rule="may" desc="Apache License"/>
