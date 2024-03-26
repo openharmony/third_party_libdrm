@@ -25,7 +25,20 @@
             "sub_component": [
                 "third_party/libdrm:libdrm"
             ],
-            "inner_kits": [],
+            "inner_kits": [
+                {
+                    "name": "//third_party/libdrm:libdrm",
+                    "header": {
+                      "header_files": [
+                        "xf86drm.h",
+                        "xf86drmHash.h",
+                        "xf86drmMode.h",
+                        "xf86drmRandom.h"
+                      ],
+                      "header_base": "//third_party/libdrm"
+                    }
+                }
+            ],
             "test": []
         }
     }
