@@ -23,7 +23,7 @@
         },
         "build": {
             "sub_component": [
-                "third_party/libdrm:libdrm"
+                "//third_party/libdrm:libdrm"
             ],
             "inner_kits": [
                 {
