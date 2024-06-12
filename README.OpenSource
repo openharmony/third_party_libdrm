@@ -2,7 +2,7 @@
     {
         "Name": "libdrm",
         "License": "MIT license",
-        "License File": "meson.build",
+        "License File": "LICENSE",
         "Version Number": "2.4.111",
         "Owner": "zhusiyuan2@huawei.com",
         "Upstream URL": "https://dri.freedesktop.org/libdrm/libdrm-2.4.111.tar.xz",
