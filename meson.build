@@ -21,11 +21,15 @@
 project(
   'libdrm',
   ['c'],
-  version : '2.4.111',
+  version : '2.4.120',
   license : 'MIT',
-  meson_version : '>= 0.53',
-  default_options : ['buildtype=debugoptimized', 'c_std=c99'],
+  meson_version : '>= 0.59',
+  default_options : ['buildtype=debugoptimized', 'c_std=c11'],
 )
+
+if ['windows', 'darwin'].contains(host_machine.system())
+  error('unsupported OS: @0@'.format(host_machine.system()))
+endif
 
 pkg = import('pkgconfig')
 
@@ -34,12 +38,8 @@ config = configuration_data()
 config.set10('UDEV', get_option('udev'))
 with_freedreno_kgsl = get_option('freedreno-kgsl')
 with_install_tests = get_option('install-test-programs')
+with_tests = get_option('tests')
 
-if ['freebsd', 'dragonfly', 'netbsd'].contains(host_machine.system())
-  dep_pthread_stubs = dependency('pthread-stubs', version : '>= 0.4')
-else
-  dep_pthread_stubs = []
-endif
 dep_threads = dependency('threads')
 
 cc = meson.get_compiler('c')
@@ -82,104 +82,63 @@ endif
 config.set10('HAVE_LIBDRM_ATOMIC_PRIMITIVES', intel_atomics)
 config.set10('HAVE_LIB_ATOMIC_OPS', lib_atomics)
 
-with_intel = false
-_intel = get_option('intel')
-if _intel != 'false'
-  if _intel == 'true' and not with_atomics
-    error('libdrm_intel requires atomics.')
-  else
-    with_intel = _intel == 'true' or host_machine.cpu_family().startswith('x86')
-  endif
-endif
+dep_pciaccess = dependency('pciaccess', version : '>= 0.10', required : get_option('intel'))
+
+with_intel = get_option('intel') \
+  .require(with_atomics, error_message : 'libdrm_intel requires atomics') \
+  .require(dep_pciaccess.found(), error_message : 'libdrm_intel requires libpciaccess') \
+  .disable_auto_if(not host_machine.cpu_family().startswith('x86')) \
+  .allowed()
 summary('Intel', with_intel)
 
-with_radeon = false
-_radeon = get_option('radeon')
-if _radeon != 'false'
-  if _radeon == 'true' and not with_atomics
-    error('libdrm_radeon requires atomics.')
-  endif
-  with_radeon = true
-endif
+with_radeon = get_option('radeon') \
+  .require(with_atomics, error_message : 'libdrm_radeon requires atomics') \
+  .allowed()
 summary('Radeon', with_radeon)
 
-with_amdgpu = false
-_amdgpu = get_option('amdgpu')
-if _amdgpu != 'false'
-  if _amdgpu == 'true' and not with_atomics
-    error('libdrm_amdgpu requires atomics.')
-  endif
-  with_amdgpu = true
-endif
+with_amdgpu = get_option('amdgpu') \
+  .require(with_atomics, error_message : 'libdrm_amdgpu requires atomics') \
+  .allowed()
 summary('AMDGPU', with_amdgpu)
 
-with_nouveau = false
-_nouveau = get_option('nouveau')
-if _nouveau != 'false'
-  if _nouveau == 'true' and not with_atomics
-    error('libdrm_nouveau requires atomics.')
-  endif
-  with_nouveau = true
-endif
+with_nouveau = get_option('nouveau') \
+  .require(with_atomics, error_message : 'libdrm_nouveau requires atomics') \
+  .allowed()
 summary('Nouveau', with_nouveau)
 
-with_vmwgfx = false
-_vmwgfx = get_option('vmwgfx')
-if _vmwgfx != 'false'
-  with_vmwgfx = true
-endif
+with_vmwgfx = get_option('vmwgfx').allowed()
 summary('vmwgfx', with_vmwgfx)
 
-with_omap = false
-_omap = get_option('omap')
-if _omap == 'true'
-  if not with_atomics
-    error('libdrm_omap requires atomics.')
-  endif
-  with_omap = true
-endif
+with_omap = get_option('omap') \
+  .require(with_atomics, error_message : 'libdrm_omap requires atomics') \
+  .enabled()
 summary('OMAP', with_omap)
 
-with_freedreno = false
-_freedreno = get_option('freedreno')
-if _freedreno != 'false'
-  if _freedreno == 'true' and not with_atomics
-    error('libdrm_freedreno requires atomics.')
-  else
-    with_freedreno = _freedreno == 'true' or ['arm', 'aarch64'].contains(host_machine.cpu_family())
-  endif
-endif
+with_freedreno = get_option('freedreno') \
+  .require(with_atomics, error_message : 'libdrm_freedreno requires atomics') \
+  .disable_auto_if(not ['arm', 'aarch64'].contains(host_machine.cpu_family())) \
+  .allowed()
 summary('Freedreno', with_freedreno)
 summary('Freedreon-kgsl', with_freedreno_kgsl)
 
-with_tegra = false
-_tegra = get_option('tegra')
-if _tegra == 'true'
-  if not with_atomics
-    error('libdrm_tegra requires atomics.')
-  endif
-  with_tegra = true
-endif
+with_tegra = get_option('tegra') \
+  .require(with_atomics, error_message : 'libdrm_tegra requires atomics') \
+  .disable_auto_if(not ['arm', 'aarch64'].contains(host_machine.cpu_family())) \
+  .enabled()
 summary('Tegra', with_tegra)
 
-with_etnaviv = false
-_etnaviv = get_option('etnaviv')
-if _etnaviv == 'true'
-  if not with_atomics
-    error('libdrm_etnaviv requires atomics.')
-  endif
-  with_etnaviv = true
-endif
+with_etnaviv = get_option('etnaviv') \
+  .require(with_atomics, error_message : 'libdrm_etnaviv requires atomics') \
+  .disable_auto_if(not ['arm', 'aarch64', 'arc', 'mips', 'mips64', 'loongarch64'].contains(host_machine.cpu_family())) \
+  .allowed()
 summary('Etnaviv', with_etnaviv)
 
-with_exynos = get_option('exynos') == 'true'
+with_exynos = get_option('exynos').enabled()
 summary('EXYNOS', with_exynos)
 
-with_vc4 = false
-_vc4 = get_option('vc4')
-if _vc4 != 'false'
-  with_vc4 = _vc4 == 'true' or ['arm', 'aarch64'].contains(host_machine.cpu_family())
-endif
+with_vc4 = get_option('vc4') \
+  .disable_auto_if(not ['arm', 'aarch64'].contains(host_machine.cpu_family())) \
+  .allowed()
 summary('VC4', with_vc4)
 
 # Among others FreeBSD does not have a separate dl library.
@@ -234,32 +193,19 @@ libdrm_c_args = cc.get_supported_arguments([
   '-Wno-unused-parameter', '-Wno-attributes', '-Wno-long-long',
   '-Wno-missing-field-initializers'])
 
-dep_pciaccess = dependency('pciaccess', version : '>= 0.10', required : with_intel)
 dep_cunit = dependency('cunit', version : '>= 2.1', required : false)
-_cairo_tests = get_option('cairo-tests')
-if _cairo_tests != 'false'
-  dep_cairo = dependency('cairo', required : _cairo_tests == 'true')
-  with_cairo_tests = dep_cairo.found()
-else
-  dep_cairo = []
-  with_cairo_tests = false
-endif
-_valgrind = get_option('valgrind')
-if _valgrind != 'false'
-  if with_freedreno
-    dep_valgrind = dependency('valgrind', required : _valgrind == 'true', version : '>=3.10.0')
-  else
-    dep_valgrind = dependency('valgrind', required : _valgrind == 'true')
-  endif
-  with_valgrind = dep_valgrind.found()
-else
-  dep_valgrind = []
-  with_valgrind = false
-endif
+dep_cairo = dependency('cairo', required : get_option('cairo-tests'))
+with_cairo_tests = dep_cairo.found()
 
-with_man_pages = get_option('man-pages')
-prog_rst2man = find_program('rst2man', 'rst2man.py', required: with_man_pages == 'true')
-with_man_pages = with_man_pages != 'false' and prog_rst2man.found()
+valgrind_version = []
+if with_freedreno
+  valgrind_version = '>=3.10.0'
+endif
+dep_valgrind = dependency('valgrind', required : get_option('valgrind'), version : valgrind_version)
+with_valgrind = dep_valgrind.found()
+
+prog_rst2man = find_program('rst2man', 'rst2man.py', required: get_option('man-pages'))
+with_man_pages = prog_rst2man.found()
 
 config.set10('HAVE_VISIBILITY', cc.has_function_attribute('visibility:hidden'))
 
@@ -280,6 +226,11 @@ if with_freedreno_kgsl and not with_freedreno
   error('cannot enable freedreno-kgsl without freedreno support')
 endif
 config.set10('_GNU_SOURCE', true)
+
+if target_machine.endian() == 'big'
+  config.set('HAVE_BIG_ENDIAN', 1)
+endif
+
 config_file = configure_file(
   configuration : config,
   output : 'config.h',
@@ -320,7 +271,7 @@ test(
   args : [
     '--lib', libdrm,
     '--symbols-file', files('core-symbols.txt'),
-    '--nm', prog_nm.path(),
+    '--nm', prog_nm.full_path(),
   ],
 )
 
@@ -391,4 +342,6 @@ if with_man_pages
   subdir('man')
 endif
 subdir('data')
-subdir('tests')
+if with_tests
+  subdir('tests')
+endif
