@@ -33,7 +33,7 @@ libdrm_etnaviv = library(
   c_args : libdrm_c_args,
   gnu_symbol_visibility : 'hidden',
   dependencies : [dep_threads, dep_rt, dep_atomic_ops],
-  version : '1.0.0',
+  version : '1.@0@.0'.format(patch_ver),
   install : true,
 )
 
@@ -51,9 +51,7 @@ ext_libdrm_etnaviv = declare_dependency(
   include_directories : [inc_drm, include_directories('.')],
 )
 
-if meson.version().version_compare('>= 0.54.0')
-  meson.override_dependency('libdrm_etnaviv', ext_libdrm_etnaviv)
-endif
+meson.override_dependency('libdrm_etnaviv', ext_libdrm_etnaviv)
 
 test(
   'etnaviv-symbols-check',
@@ -61,6 +59,6 @@ test(
   args : [
     '--lib', libdrm_etnaviv,
     '--symbols-file', files('etnaviv-symbols.txt'),
-    '--nm', prog_nm.path(),
+    '--nm', prog_nm.full_path(),
   ],
 )

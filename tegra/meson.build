@@ -31,7 +31,7 @@ libdrm_tegra = library(
   dependencies : [dep_threads, dep_atomic_ops],
   c_args : libdrm_c_args,
   gnu_symbol_visibility : 'hidden',
-  version : '0.0.0',
+  version : '0.@0@.0'.format(patch_ver),
   install : true,
 )
 
@@ -40,9 +40,7 @@ ext_libdrm_tegra = declare_dependency(
   include_directories : [inc_drm, include_directories('.')],
 )
 
-if meson.version().version_compare('>= 0.54.0')
-  meson.override_dependency('libdrm_tegra', ext_libdrm_tegra)
-endif
+meson.override_dependency('libdrm_tegra', ext_libdrm_tegra)
 
 install_headers('tegra.h', subdir : 'libdrm')
 
@@ -59,6 +57,6 @@ test(
   args : [
     '--lib', libdrm_tegra,
     '--symbols-file', files('tegra-symbols.txt'),
-    '--nm', prog_nm.path(),
+    '--nm', prog_nm.full_path(),
   ],
 )
