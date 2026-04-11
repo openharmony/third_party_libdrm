@@ -27,7 +27,11 @@
             ],
             "inner_kits": [
                 {
-                    "name": "//third_party/libdrm:libdrm"
+                    "name": "//third_party/libdrm:libdrm",
+                    "header": {
+                        "header_files": [],
+                        "header_base": "//third_party/libdrm/include/drm/"
+                      }
                 }
             ],
             "test": []
